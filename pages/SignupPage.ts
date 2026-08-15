@@ -44,6 +44,9 @@ export class SignupPage extends BasePage {
     readonly mobileNumberInput: Locator;
     readonly createAccountButton: Locator;
 
+    // Navigation & Account Locators
+    readonly deleteAccountLink: Locator;
+
     constructor(page: Page) {
         super(page);
 
@@ -69,7 +72,10 @@ export class SignupPage extends BasePage {
         this.cityInput = page.locator('#city');
         this.zipcodeInput = page.locator('#zipcode');
         this.mobileNumberInput = page.locator('#mobile_number');
-        this.createAccountButton = page.locator('[data-qa="create-account"]'); 
+        this.createAccountButton = page.locator('[data-qa="create-account"]');
+
+        // Delete Account locator (using href for higher reliability)
+        this.deleteAccountLink = page.locator('a[href="/delete_account"]');
     }
 
     async open(): Promise<void> {
@@ -77,7 +83,6 @@ export class SignupPage extends BasePage {
         await this.page.getByRole('link', { name: ' Signup / Login' }).click();
     }
 
-    // Step 1: Fill in the initial signup form
     async fillInitialSignupForm(name: string, email: string): Promise<void> {
         await this.signupNameInput.fill(name);
         await this.signupEmailInput.fill(email);
@@ -85,7 +90,6 @@ export class SignupPage extends BasePage {
         await expect(this.page).toHaveURL(/.*signup/);
     }
 
-    // Step 2: Complete registration with details
     async completeRegistration(details: UserData): Promise<void> {
         if (details.title === 'Mrs') {
             await this.titleMrsRadio.check();
@@ -110,6 +114,24 @@ export class SignupPage extends BasePage {
         await this.mobileNumberInput.fill(details.mobileNumber);
 
         await this.createAccountButton.click();
-        await expect(this.page.getByText('Account Created!')).toBeVisible();
+    }
+
+    async registerAndKeepLoggedIn(name: string, email: string, userDetails: UserData): Promise<void> {
+        await this.open();
+        await this.fillInitialSignupForm(name, email);
+        await this.completeRegistration(userDetails);
+
+        // Click continue to complete registration and stay logged in
+        await expect(this.page.getByText('Account Created!', { exact: false })).toBeVisible();
+        await this.page.locator('[data-qa="continue-button"]').click();
+
+        // Verify session is active
+        await expect(this.page.getByText(/Logged in as/i)).toBeVisible();
+    }
+
+    async deleteAccount(): Promise<void> {
+        await this.page.locator('a[href="/delete_account"]').click();
+        await expect(this.page.getByText('Account Deleted!', { exact: false })).toBeVisible();
+        await this.page.locator('[data-qa="continue-button"]').click();
     }
 }
